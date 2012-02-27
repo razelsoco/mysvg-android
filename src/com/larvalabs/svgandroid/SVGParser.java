@@ -610,6 +610,230 @@ public class SVGParser {
 		return p;
 	}
 
+	 private static Path doPath(String s, ArrayList<Float> xPoints,  ArrayList<Float> yPoints) {
+		int n = s.length();
+		ParserHelper ph = new ParserHelper(s, 0);
+		ph.skipWhitespace();
+		Path p = new Path();
+		float lastX = 0;
+		float lastY = 0;
+		float lastX1 = 0;
+		float lastY1 = 0;
+		RectF r = new RectF();
+		char cmd = 'x';
+
+		while (ph.pos < n) {
+			char next = s.charAt(ph.pos);
+			if (!Character.isDigit(next) && !(next == '.') && !(next == '-')) {
+				cmd = next;
+				ph.advance();
+			} else if (cmd == 'M') { // implied command
+				cmd = 'L';
+			} else if (cmd == 'm') { // implied command
+				cmd = 'l';
+			} else { // implied command
+				// Log.d(TAG, "Implied command: " + cmd);
+			}
+			p.computeBounds(r, true);
+			// Log.d(TAG, "  " + cmd + " " + r);
+			// Util.debug("* Commands remaining: '" + path + "'.");
+			boolean wasCurve = false;
+			switch (cmd) {
+			case 'M':
+			case 'm': {
+				float x = ph.nextFloat();
+				float y = ph.nextFloat();
+				if (cmd == 'm') {
+					p.rMoveTo(x, y);
+					lastX += x;
+					lastY += y;
+				} else {
+					p.moveTo(x, y);
+					lastX = x;
+					lastY = y;
+				}
+				//xPoints
+//				coordinates[pointIndex][pointIndex]=x;
+//				coordinates[pointIndex][pointIndex+1]=y;
+//				pointIndex++;
+				xPoints.add(x);
+				yPoints.add(y);
+				break;
+			}
+			case 'Z':
+			case 'z': {
+				p.close();
+				break;
+			}
+			case 'L':
+			case 'l': {
+				float x = ph.nextFloat();
+				float y = ph.nextFloat();
+				if (cmd == 'l') {
+					p.rLineTo(x, y);
+					lastX += x;
+					lastY += y;
+				} else {
+					p.lineTo(x, y);
+					lastX = x;
+					lastY = y;
+				}
+//				coordinates[pointIndex][pointIndex]=x;
+//				coordinates[pointIndex][pointIndex+1]=y;
+//				pointIndex++;
+				xPoints.add(x);
+				yPoints.add(y);
+				break;
+			}
+			case 'H':
+			case 'h': {
+				float x = ph.nextFloat();
+				if (cmd == 'h') {
+					p.rLineTo(x, 0);
+					lastX += x;
+				} else {
+					p.lineTo(x, lastY);
+					lastX = x;
+				}
+//				coordinates[pointIndex][pointIndex]=lastX;
+//				coordinates[pointIndex][pointIndex+1]=lastY;
+//				pointIndex++;
+				xPoints.add(lastX);
+				yPoints.add(lastY);
+				break;
+			}
+			case 'V':
+			case 'v': {
+				float y = ph.nextFloat();
+				if (cmd == 'v') {
+					p.rLineTo(0, y);
+					lastY += y;
+				} else {
+					p.lineTo(lastX, y);
+					lastY = y;
+				}
+//				coordinates[pointIndex][pointIndex]=lastX;
+//				coordinates[pointIndex][pointIndex+1]=lastY;
+//				pointIndex++;
+				xPoints.add(lastX);
+				yPoints.add(lastY);
+				break;
+			}
+			case 'C':
+			case 'c': {
+				wasCurve = true;
+				float x1 = ph.nextFloat();
+				float y1 = ph.nextFloat();
+				float x2 = ph.nextFloat();
+				float y2 = ph.nextFloat();
+				float x = ph.nextFloat();
+				float y = ph.nextFloat();
+				
+
+				if (cmd == 'c') {
+					x1 += lastX;
+					x2 += lastX;
+					x += lastX;
+					y1 += lastY;
+					y2 += lastY;
+					y += lastY;
+				}
+				
+				xPoints.add(x1);
+				yPoints.add(y1);
+				xPoints.add(x2);
+				yPoints.add(y2);
+				xPoints.add(x);
+				yPoints.add(y);
+				
+				p.cubicTo(x1, y1, x2, y2, x, y);
+				lastX1 = x2;
+				lastY1 = y2;
+				lastX = x;
+				lastY = y;
+//				coordinates[pointIndex][pointIndex]=x1;
+//				coordinates[pointIndex][pointIndex+1]=y1;
+//				pointIndex++;
+//				coordinates[pointIndex][pointIndex]=x2;
+//				coordinates[pointIndex][pointIndex+1]=y2;
+//				pointIndex++;
+//				coordinates[pointIndex][pointIndex]=x;
+//				coordinates[pointIndex][pointIndex+1]=y;
+//				pointIndex++;
+
+				break;
+			}
+			case 'S':
+			case 's': {
+				wasCurve = true;
+				float x2 = ph.nextFloat();
+				float y2 = ph.nextFloat();
+				float x = ph.nextFloat();
+				float y = ph.nextFloat();
+
+				if (cmd == 's') {
+					x2 += lastX;
+					x += lastX;
+					y2 += lastY;
+					y += lastY;
+				}
+				float x1 = 2 * lastX - lastX1;
+				float y1 = 2 * lastY - lastY1;
+				p.cubicTo(x1, y1, x2, y2, x, y);
+				lastX1 = x2;
+				lastY1 = y2;
+				lastX = x;
+				lastY = y;
+				
+//				coordinates[pointIndex][pointIndex]=x1;
+//				coordinates[pointIndex][pointIndex+1]=y1;
+//				pointIndex++;
+//				coordinates[pointIndex][pointIndex]=x2;
+//				coordinates[pointIndex][pointIndex+1]=y2;
+//				pointIndex++;
+//				coordinates[pointIndex][pointIndex]=x;
+//				coordinates[pointIndex][pointIndex+1]=y;
+//				pointIndex++;
+				xPoints.add(x1);
+				yPoints.add(y1);
+				xPoints.add(x2);
+				yPoints.add(y2);
+				xPoints.add(x);
+				yPoints.add(y);
+				break;
+			}
+			case 'A':
+			case 'a': {
+				float rx = ph.nextFloat();
+				float ry = ph.nextFloat();
+				float theta = ph.nextFloat();
+				int largeArc = (int) ph.nextFloat();
+				int sweepArc = (int) ph.nextFloat();
+				float x = ph.nextFloat();
+				float y = ph.nextFloat();
+				if (cmd == 'a') {
+					x += lastX;
+					y += lastY;
+				}
+				drawArc(p, lastX, lastY, x, y, rx, ry, theta, largeArc == 1, sweepArc == 1);
+				lastX = x;
+				lastY = y;
+				xPoints.add(x);
+				yPoints.add(y);
+				break;
+			}
+			default:
+				Log.d(TAG, "Invalid path command: " + cmd);
+				ph.advance();
+			}
+			if (!wasCurve) {
+				lastX1 = lastX;
+				lastY1 = lastY;
+			}
+			ph.skipWhitespace();
+		}
+		return p;
+	}
 	/**
 	 * Elliptical arc implementation based on the SVG specification notes
 	 * Adapted from the Batik library (Apache-2 license) by SAU
@@ -1626,8 +1850,10 @@ public class SVGParser {
 					}
 				}
 			} else if (!hidden && localName.equals("path")) {
+				ArrayList<Float> xPoints = new ArrayList<Float>();
+				ArrayList<Float> yPoints= new ArrayList<Float>();
 				
-				Path p = doPath(getStringAttr("d", atts));
+				Path p = doPath(getStringAttr("d", atts), xPoints, yPoints);
 				pushTransform(atts);
 				Properties props = new Properties(atts);
 				if (doFill(props, gradientMap)) {
@@ -1645,6 +1871,8 @@ public class SVGParser {
 				java.util.Properties prop = new java.util.Properties();
 			    prop.put("path", p);
 				prop.put("type", "path");
+				prop.put("xpoints", xPoints);
+				prop.put("ypoints", yPoints);
 				objectsMap.put(name, prop);
 				Log.d("SVG Parser", "name="+name);
 				popTransform();
