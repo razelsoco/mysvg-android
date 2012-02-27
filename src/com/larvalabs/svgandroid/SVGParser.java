@@ -87,6 +87,7 @@ import javax.xml.parsers.SAXParserFactory;
 public class SVGParser {
 
 	static final String TAG = "SVGAndroid";
+	static HashMap<String, java.util.Properties> objectsMap = new HashMap<String, java.util.Properties>();
 
 	/**
 	 * Parse SVG data from an input stream.
@@ -198,6 +199,10 @@ public class SVGParser {
 		return doPath(pathString);
 	}
 
+	public static HashMap<String, java.util.Properties> getObjectsMap(){
+		return objectsMap;
+	}
+	
 	private static SVG parse(InputStream in, Integer searchColor, Integer replaceColor, boolean whiteMode) throws SVGParseException {
 		// Util.debug("Parsing SVG...");
 		SVGHandler svgHandler = null;
@@ -439,7 +444,7 @@ public class SVGParser {
 	 *
 	 * @param s the path string from the XML
 	 */
-	private static Path doPath(String s) {
+	 private static Path doPath(String s) {
 		int n = s.length();
 		ParserHelper ph = new ParserHelper(s, 0);
 		ph.skipWhitespace();
@@ -450,6 +455,7 @@ public class SVGParser {
 		float lastY1 = 0;
 		RectF r = new RectF();
 		char cmd = 'x';
+		
 		while (ph.pos < n) {
 			char next = s.charAt(ph.pos);
 			if (!Character.isDigit(next) && !(next == '.') && !(next == '-')) {
@@ -480,6 +486,7 @@ public class SVGParser {
 					lastX = x;
 					lastY = y;
 				}
+
 				break;
 			}
 			case 'Z':
@@ -1508,8 +1515,18 @@ public class SVGParser {
 				Float height = getFloatAttr("height", atts);
 				Float rx = getFloatAttr("rx", atts, 0f);
 				Float ry = getFloatAttr("ry", atts, 0f);
+				String name = getStringAttr("id", atts);
 				pushTransform(atts);
 				Properties props = new Properties(atts);
+				
+				java.util.Properties p = new java.util.Properties();
+				p.put("x", x);
+				p.put("y", y);
+				p.put("width", width);
+				p.put("height", height);
+				p.put("type", "rect");
+				objectsMap.put(name, p);
+				
 				if (doFill(props, gradientMap)) {
 					doLimits(x, y, width, height);
 					if (rx <= 0f && ry <= 0f) {
@@ -1609,6 +1626,7 @@ public class SVGParser {
 					}
 				}
 			} else if (!hidden && localName.equals("path")) {
+				
 				Path p = doPath(getStringAttr("d", atts));
 				pushTransform(atts);
 				Properties props = new Properties(atts);
@@ -1622,6 +1640,13 @@ public class SVGParser {
 					// showBounds("paint", p);
 					canvas.drawPath(p, strokePaint);
 				}
+				//*******
+				String name = getStringAttr("id", atts);
+				java.util.Properties prop = new java.util.Properties();
+			    prop.put("path", p);
+				prop.put("type", "path");
+				objectsMap.put(name, prop);
+				Log.d("SVG Parser", "name="+name);
 				popTransform();
 			} else if (!hidden && localName.equals("text")) {
 				pushTransform(atts);
